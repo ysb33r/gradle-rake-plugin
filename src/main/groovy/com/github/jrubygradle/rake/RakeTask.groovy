@@ -15,19 +15,29 @@
  */
 package com.github.jrubygradle.rake
 
+import groovy.transform.PackageScope
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.TaskAction
 
 /**
  * Created by schalkc on 17/12/14.
  */
 class RakeTask extends DefaultTask {
 
-    @Input
+    /** The Ruby rake task equivalent of this task
+     *
+     */
     String rakeTaskName
 
     /** The {@code RakeFile} instance this task is associated with
      *
      */
     RakeFile rakeFile
+
+
+    @TaskAction
+    def invoke() {
+        rakeFile.invoke(rakeTaskName)
+    }
 }

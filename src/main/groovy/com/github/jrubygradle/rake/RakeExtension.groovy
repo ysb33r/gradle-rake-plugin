@@ -32,6 +32,7 @@ class RakeExtension {
      */
     Project project
 
+
     /** Loads the default Rakefile which will be according to the Ruby SourceSet specified
      * in the base plugin.
      *
@@ -59,11 +60,12 @@ class RakeExtension {
      */
     List<RakeTask> loadfile( final Object rakeFile, @DelegatesTo(RakeFile) Closure config) {
 
-        RakeFile rf = new RakeFile( project.file(rakeFile) )
+        RakeFile rf = new RakeFile( project, project.file(rakeFile) )
 
-        config.delegate =rf
+        config.delegate = rf
         config.call()
 
-        rf.loadTasks(project)
+        rf.loadTasks()
     }
+
 }

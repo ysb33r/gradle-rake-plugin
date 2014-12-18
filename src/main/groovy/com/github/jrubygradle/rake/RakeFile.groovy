@@ -24,6 +24,7 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.jruby.CompatVersion
 import org.jruby.Ruby
+import org.jruby.RubyArray
 import org.jruby.RubyInstanceConfig
 import org.jruby.javasupport.JavaEmbedUtils
 import org.jruby.runtime.builtin.IRubyObject
@@ -33,24 +34,30 @@ import com.github.jrubygradle.rake.bridge.RakeTask as RubyRakeTask
 class RakeFile {
     String name = 'rake'
     String group = 'External Rake'
-    List<RubyRakeTask> rawRakeTasks
 
-    @PackageScope File filename
-    @PackageScope RubyInstanceConfig config = new RubyInstanceConfig()
+    @PackageScope final File filename
+    @PackageScope final Project project
+    @PackageScope final RubyInstanceConfig config = new RubyInstanceConfig()
     @PackageScope Ruby rubyRuntime
+
+    private Map<String,RubyRakeTask> rawRakeTasks= [:]
 
     /** Constructs a Rakefile representation
      *
      * @param rakeFilename
      */
-    RakeFile(  final File rakeFilename ) {
+    RakeFile( final Project project, final File rakeFilename ) {
         filename = rakeFilename
+        this.project = project
         config = new RubyInstanceConfig()
 
         // Set compatVersion from `jruby` instead of here
         config.compatVersion = CompatVersion.RUBY2_0
         config.compileMode = RubyInstanceConfig.CompileMode.OFF
         config.argv = ['-f',filename.absolutePath ] as String[]
+
+        config.environment = [ HOME : project.gradle.gradleUserHomeDir.absolutePath ]
+        rubyRuntime = JavaEmbedUtils.initialize(Collections.EMPTY_LIST, config)
     }
 
     /** Loads all of the tasks from the Rakefile and attach them to the Gradle project as {@code RakeTask} tasks.
@@ -58,21 +65,30 @@ class RakeFile {
      * @param project Project to which tasks must be attached.
      * @return
      */
-    List<RakeTask> loadTasks(Project project) {
-        config.environment = [ HOME : project.gradle.gradleUserHomeDir.absolutePath ]
-        rubyRuntime = JavaEmbedUtils.initialize(Collections.EMPTY_LIST, config)
+    List<RakeTask> loadTasks() {
         GradleRakeWrapper grw = RakeFileLoader.load(rubyRuntime)
 
-        rawRakeTasks = grw.load_tasks ().collect {
+        List<RubyRakeTask> rawTasks = grw.load_tasks ().collect {
             JavaEmbedUtils.rubyToJava(rubyRuntime, it as IRubyObject, RubyRakeTask.class ) as RubyRakeTask
         }
 
-        rawRakeTasks.collect { RubyRakeTask it ->
+        rawRakeTasks.clear()
+
+        rawTasks.collect { RubyRakeTask it ->
+            rawRakeTasks[it.name()] = it
             String taskName = RakeFileLoader.rakeTaskNameToGradle(name,it.name())
             RakeTask task = project.tasks.create(taskName,RakeTask) as RakeTask
             configureTask(it,task)
             task
         }
+    }
+
+    /** Invoke the specific task on the Ruby Rake object
+     *
+     * @param rubyRakeTaskName Name of task to invoke
+     */
+    def invoke( final String rubyRakeTaskName ) {
+        rawRakeTasks[rubyRakeTaskName].invoke(RubyArray.newArray(rubyRuntime, 0 ))
     }
 
     /** Configures a Gradle RakeTask from a Ruby Rake::Task
@@ -85,8 +101,9 @@ class RakeFile {
     @CompileDynamic
     RakeTask configureTask( RubyRakeTask rakeTask, RakeTask gradleTask ) {
         String prefix = name
+        gradleTask.rakeTaskName = rakeTask.name()
+        gradleTask.rakeFile = this
         gradleTask.configure {
-            rakeTaskName = rakeTask.name()
             group = owner.group
         }
 //        rakeTask.prerequisite_tasks().each { rakeDepends ->
@@ -95,15 +112,5 @@ class RakeFile {
     }
 
 
-//    config.argv = ['--tasks','-f',rakeFile.absolutePath ] as String[]
-
-//    def environment( Map<String,Object> append ) {
-//
-//    }
-//
-//    def setEnvironment( Map<String,Object> replace ) {
-//
-//    }
-//
 }
 

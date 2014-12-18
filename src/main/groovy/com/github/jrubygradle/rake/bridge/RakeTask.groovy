@@ -15,6 +15,8 @@
  */
 package com.github.jrubygradle.rake.bridge
 
+import org.jruby.RubyArray
+
 /**
  * Created by schalkc on 17/12/14.
  */
@@ -22,5 +24,5 @@ interface RakeTask {
     String name()
     RakeTask[] prerequisite_tasks()
     RakeTask[] all_prerequisite_tasks()
-    // invoke(*args)
+    def invoke(RubyArray ra)
 }
