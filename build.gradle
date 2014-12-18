@@ -1,0 +1,162 @@
+/*
+ * Copyright 2010 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+buildscript {
+    repositories { jcenter() }
+    dependencies {
+        classpath group: 'com.github.jruby-gradle', name: 'jruby-gradle-plugin', version: '0.1.10'
+//        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:0.5'
+//        classpath 'com.netflix.nebula:gradle-extra-configurations-plugin:1.12.+'
+    }
+}
+
+apply plugin: 'groovy'
+apply plugin: 'com.github.jruby-gradle.base'
+apply plugin: 'maven'
+//apply plugin: 'com.jfrog.bintray'
+//apply plugin: 'provided-base'
+//apply from: 'gradle/integration-tests.gradle'
+
+
+group = 'com.github.jruby-gradle'
+version = '0.1.0'
+archivesBaseName = 'rake'
+
+if (System.env.RELEASE != '1') {
+    version = "${version}-SNAPSHOT"
+}
+
+sourceCompatibility = '1.6'
+targetCompatibility = '1.6'
+
+ext {
+    jrubyVersion = '1.7.17'
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+
+    compile gradleApi()
+    compile localGroovy()
+    runtime "${group}:jruby-gradle-plugin:0.1.10+"
+
+    String spockVersion = "org.spockframework:spock-core:0.7-groovy-${gradle.gradleVersion.startsWith('1.')?'1.8':'2.0'}"
+
+    testCompile (spockVersion) {
+        exclude module : 'groovy-all'
+    }
+
+    compile "org.jruby:jruby-complete:${jrubyVersion}"
+
+}
+
+test {
+    if(gradle.startParameter.isOffline()) {
+        systemProperties 'TESTS_ARE_OFFLINE' : '1'
+    }
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives sourcesJar
+}
+
+
+//dependencies {
+//    integrationTestCompile (spockVersion) {
+//        exclude module : 'groovy-all'
+//    }
+//
+//    // This needs to be here as JRubyExec will add it as a dependency
+//    integrationTestGems 'org.bouncycastle:bcprov-jdk15on:1.50'
+//
+//    // NOTE: If you change this, you will also need to update JRubyPrepareGemsIntegrationSpec
+//    integrationTestGems 'rubygems:slim:2.0.2'
+//
+//    // NOTE: If you change this, you will also need to update JRubyExecIntegrationSpec & JRubyExecExtensionIntegrationSpec
+//    integrationTestGems 'rubygems:credit_card_validator:1.1.0'
+//
+//    // NOTE: If you change this, you will also need to update JRubyExecIntegrationSpec
+//    integrationTestGems 'rubygems:rspec:3.1.0'
+//
+//    // NOTE: Leave this at .11 as it must be an older version. if
+//    // you change it here you will also need to update JRubyExecIntegrationSpec
+//    integrationTestGems "org.jruby:jruby-complete:1.7.11"
+//}
+
+//task copyIntegrationTestJRuby (type:Copy) {
+//    from ({configurations.testJRubyPrepare.files})
+//    into new File(buildDir,'tmp/integrationTest/flatRepo')
+//}
+//
+//integrationTest {
+//    systemProperties TESTROOT        : new File(buildDir,'tmp/integrationTest/root').absolutePath
+//    systemProperties CACHEDIR        : new File(buildDir,'tmp/integrationTest/cache').absolutePath
+//    systemProperties FLATREPO        : new File(buildDir,'tmp/integrationTest/flatRepo').absolutePath
+//    systemProperties TEST_SCRIPT_DIR : new File(projectDir,'src/integTest/resources/scripts').absolutePath
+//    systemProperties 'logback.configurationFile' : new File(projectDir,'src/integTest/resources/logback-test.xml').absolutePath
+//
+//    if(gradle.startParameter.isOffline()) {
+//        systemProperties 'TESTS_ARE_OFFLINE' : '1'
+//    }
+//
+//    dependsOn copyIntegrationTestJRuby
+//}
+
+
+
+//// Ensure we don't fail in CI or on a system without these values set in
+//// ~/.gradle/gradle.properties
+//if( !hasProperty( 'bintrayUser' ) )
+//  ext.bintrayUser = ''
+//
+//if( !hasProperty( 'bintrayKey' ) )
+//  ext.bintrayKey = ''
+//
+//bintray {
+//    user = project.bintrayUser
+//    key = project.bintrayKey
+//    publish = true
+//    dryRun = false
+//    configurations = ['archives']
+//
+//    pkg {
+//        userOrg = 'jruby-gradle'
+//        repo = 'plugins'
+//        name = 'jruby-gradle-plugin'
+//        labels = ['jruby']
+//
+//        version {
+//            name = project.version
+//            vcsTag = "v${project.version}"
+//            attributes = ['gradle-plugin' : 'com.github.jruby-gradle.base:com.github.jruby-gradle:jruby-gradle-plugin']
+//            desc = 'The purpose of plugin is to encapsulate useful Gradle functionality for JRuby projects.'
+//
+//        }
+//    }
+//}
+//bintrayUpload.dependsOn assemble
+//
+//
+//// vim: ft=groovy
+
+

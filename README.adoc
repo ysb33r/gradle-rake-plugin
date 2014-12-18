@@ -1,0 +1,29 @@
+= gradle-rake-plugin
+
+Stil very experimental at this stage. The idea is to reflect Rake tasks into Gradle in a similar manner
+as which can be done for Ant already. If successfull this can lead to Gradle being able to build existing Rake-based projects as part of a larger build process.
+
+DSL-wise the intent ability to load an existing `Rakefile` by one of the following means
+
+[source,groovy]
+----
+apply plugin : 'com.github.jruby-gradle.rake'
+
+// Load from the location as per a new Gradle convention ('src/ruby/Rakefile')
+rake.loadfile()
+
+// Load a Rakefile from a given location
+rake.loadfile('/path/to/Rakefile')
+
+// Load a Rakefile with additional configuration
+rake.loadfile('/path/to/Rakefile') {
+  group 'Slim Rake Tasks'
+}
+----
+
+If that has loaded successfully, then all of the tasks in the `Rakefile` will be reflected as tasks prefixed by a
+domain string, which is `rake` by default. For instance if the `Rakefile` has a task called `doc` then it's equivalent
+in `gradle` will be `rakeDoc`.
+
+Namespaced tasks i.e. separated by `:` characters will be subjected to additional capitalisation. For instance if a task
+`glory` exists in namespace `morning` then the equivalent `gradle` task will be called `rakeMorningGlory`.
