@@ -15,6 +15,7 @@
  */
 package com.github.jrubygradle.rake
 
+import org.apache.commons.io.FileUtils
 import org.gradle.api.Project
 import org.gradle.testfixtures.ProjectBuilder
 import spock.lang.Specification
@@ -25,32 +26,41 @@ import spock.lang.Specification
  */
 class RakeExtensionSpec extends Specification {
 
-    static final File TESTFILES = new File("${System.getProperty('TESTFILES') ?: 'src/test/resources/test-files'}")
+    static final File TESTFILES = new File( "${System.getProperty('TESTFILES') ?: 'src/test/resources/test-files'}")
+    static final File TESTDIR = new File(System.getProperty('TESTROOT') ?: './build/test','RakeExtensionSpec').absoluteFile
 //    static final File TESTREPO_LOCATION = new File("${System.getProperty('TESTREPO_LOCATION') ?: 'build/tmp/test/repo'}")
 
     Project project
 
     void setup() {
-        project = ProjectBuilder.builder().withProjectDir(new File('.').absoluteFile).build()
+
+        if(TESTDIR.exists()) {
+            TESTDIR.deleteDir()
+        }
+        TESTDIR.mkdirs()
+
+        project = ProjectBuilder.builder().withProjectDir(TESTDIR).build()
+        project.apply plugin : 'com.github.jruby-gradle.base'
+
     }
 
     def "Must be able to create an extension"() {
         given:
-            def ext = new RakeExtension(project)
+        def ext = new RakeExtension(project)
 
         expect:
-            ext.project == project
+        ext.project == project
     }
 
     def "Must be able to load a Rakefile"() {
         given:
-            def ext = new RakeExtension(project)
-            def tasks = ext.loadfile("${TESTFILES}/simple/Rakefile")
+        FileUtils.copyDirectory( new File(TESTFILES,'simple'),new File(TESTDIR,'simple') )
+        def ext = new RakeExtension(project)
+        def tasks = ext.loadfile("${TESTDIR}/simple/Rakefile")
 
         expect:
-            tasks.size() == 4
-            tasks.find { it.name == 'rakeDoc'}
-
+        tasks.size() == 4
+        tasks.find { it.name == 'rakeDoc'}
 
     }
 }

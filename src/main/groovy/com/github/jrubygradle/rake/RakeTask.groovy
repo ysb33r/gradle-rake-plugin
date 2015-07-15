@@ -35,9 +35,10 @@ class RakeTask extends DefaultTask {
      */
     RakeFile rakeFile
 
+    def rakeResult
 
     @TaskAction
     def invoke() {
-        rakeFile.invoke(rakeTaskName)
+        rakeResult = rakeFile.invoke(rakeTaskName)
     }
 }

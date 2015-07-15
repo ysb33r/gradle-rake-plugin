@@ -27,7 +27,7 @@ class RakePlugin implements Plugin<Project> {
     void apply(Project project) {
         project.with {
             apply plugin: 'com.github.jruby-gradle.base'
-
+            configurations.maybeCreate 'rake'
             extensions.create 'rake',RakeExtension,project
         }
     }

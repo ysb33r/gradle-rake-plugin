@@ -16,8 +16,10 @@
 
 package com.github.jrubygradle.rake
 
+import groovy.transform.CompileDynamic
 import groovy.transform.CompileStatic
 import groovy.transform.TupleConstructor
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 
 /**
@@ -58,12 +60,19 @@ class RakeExtension {
      * @param config
      * @return List of tasks that were added
      */
+    @CompileDynamic
     List<RakeTask> loadfile( final Object rakeFile, @DelegatesTo(RakeFile) Closure config) {
+        File rakeFileResolved = project.file(rakeFile)
 
-        RakeFile rf = new RakeFile( project, project.file(rakeFile) )
+        if(!rakeFileResolved.exists()) {
+            throw new FileNotFoundException("Cannot find Rakefile at location ${rakeFileResolved.absolutePath}")
+        }
 
-        config.delegate = rf
-        config.call()
+        RakeFile rf = new RakeFile( project, rakeFileResolved )
+
+        def cfg = config.clone()
+        cfg.delegate = rf
+        cfg.call()
 
         rf.loadTasks()
     }

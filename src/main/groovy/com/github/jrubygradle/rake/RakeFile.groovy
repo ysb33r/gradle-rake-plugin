@@ -34,6 +34,7 @@ import com.github.jrubygradle.rake.bridge.RakeTask as RubyRakeTask
 class RakeFile {
     String name = 'rake'
     String group = 'External Rake'
+    String gemsTask = 'jrubyPrepareGems'
 
     @PackageScope final File filename
     @PackageScope final Project project
@@ -44,20 +45,40 @@ class RakeFile {
 
     /** Constructs a Rakefile representation
      *
-     * @param rakeFilename
+     * @param Options. Currently only {@code output} and {@code error} is supported.
+     * @param project Project into which Rake tasks will be reflected
+     * @param rakeFilename Rakefile to process
      */
-    RakeFile( final Project project, final File rakeFilename ) {
+    RakeFile( Map options = [:], final Project project, final File rakeFilename ) {
         filename = rakeFilename
         this.project = project
+
         config = new RubyInstanceConfig()
 
         // Set compatVersion from `jruby` instead of here
         config.compatVersion = CompatVersion.RUBY2_0
         config.compileMode = RubyInstanceConfig.CompileMode.OFF
         config.argv = ['-f',filename.absolutePath ] as String[]
+        config.loadPaths = [ gemHome ]
+        config.environment = [
+                HOME : project.gradle.gradleUserHomeDir.absolutePath
+        ]
 
-        config.environment = [ HOME : project.gradle.gradleUserHomeDir.absolutePath ]
+        if( options.output ) {
+            config.output = options.output as PrintStream
+        }
+        if( options.error ) {
+            config.error = options.error as PrintStream
+        }
         rubyRuntime = JavaEmbedUtils.initialize(Collections.EMPTY_LIST, config)
+    }
+
+    /** Get holds of the output stream that this Rakefile was initialised with
+     *
+     * @return Standard output stream
+     */
+    PrintStream getOutputStream() {
+        rubyRuntime.outputStream
     }
 
     /** Loads all of the tasks from the Rakefile and attach them to the Gradle project as {@code RakeTask} tasks.
@@ -74,13 +95,16 @@ class RakeFile {
 
         rawRakeTasks.clear()
 
-        rawTasks.collect { RubyRakeTask it ->
+        List<RakeTask> tasks = rawTasks.collect { RubyRakeTask it ->
             rawRakeTasks[it.name()] = it
             String taskName = RakeFileLoader.rakeTaskNameToGradle(name,it.name())
             RakeTask task = project.tasks.create(taskName,RakeTask) as RakeTask
             configureTask(it,task)
             task
         }
+
+        tasks.each { RakeTask it -> addDependentRakeTasks(it) }
+        tasks
     }
 
     /** Invoke the specific task on the Ruby Rake object
@@ -97,18 +121,32 @@ class RakeFile {
      * @param gradleTask The instance of the Gradle task to be configured
      * @return The Gradle task
      */
-    @PackageScope
     @CompileDynamic
-    RakeTask configureTask( RubyRakeTask rakeTask, RakeTask gradleTask ) {
+    private RakeTask configureTask( RubyRakeTask rakeTask, RakeTask gradleTask ) {
         String prefix = name
         gradleTask.rakeTaskName = rakeTask.name()
         gradleTask.rakeFile = this
         gradleTask.configure {
             group = owner.group
+            dependsOn gemsTask
         }
-//        rakeTask.prerequisite_tasks().each { rakeDepends ->
-//            gradleTask.dependsOn RakeFileLoader.rakeTaskNameToGradle(prefix,rakeDepends.name())
-//        }
+    }
+
+    private void addDependentRakeTasks( RakeTask gradleTask  ) {
+        RubyRakeTask rakeTask = rawRakeTasks[gradleTask.rakeTaskName]
+
+        rakeTask.prerequisite_tasks().each { RubyRakeTask rakeDepends ->
+            String gradleName = RakeFileLoader.rakeTaskNameToGradle(name,rakeDepends.name())
+
+            if(project.tasks.findByName(gradleName)) {
+                gradleTask.dependsOn gradleName
+            }
+        }
+    }
+
+    @CompileDynamic
+    private String getGemHome() {
+        project.tasks.getByName(gemsTask).outputDir.absolutePath
     }
 
 
